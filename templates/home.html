@@ -1,0 +1,530 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ecommerce AI Explorer — Natural Language SQL Agent{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Extra page-specific styling for the conversational explorer */
+  .explorer-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+    margin-top: 16px;
+    margin-bottom: 24px;
+    min-height: calc(100vh - var(--navbar-height) - 160px);
+  }
+
+  @media (max-width: 991.98px) {
+    .explorer-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Sidebar styling */
+  .explorer-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sidebar-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .sidebar-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--gray-100);
+    padding-bottom: 8px;
+  }
+
+  /* Stats table */
+  .stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--gray-50);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    border: 1px solid var(--gray-100);
+  }
+
+  .stat-name {
+    font-weight: 500;
+    color: var(--gray-600);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-val {
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+  }
+
+  .stat-total {
+    font-weight: 700;
+    border-top: 2px dashed var(--gray-200);
+    margin-top: 4px;
+    padding-top: 12px;
+    background: transparent;
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Chat area styling */
+  .chat-panel {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    height: 700px;
+  }
+
+  .chat-header {
+    background: var(--gray-50);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .chat-agent-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .chat-agent-avatar {
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    color: var(--white);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 10px rgba(37,99,235,0.25);
+  }
+
+  .chat-agent-status {
+    font-size: 0.75rem;
+    color: var(--success);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .chat-messages {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .message {
+    display: flex;
+    gap: 16px;
+    max-width: 85%;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .message-user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+    max-width: 75%;
+  }
+
+  .message-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .message-user .message-avatar {
+    background: var(--gray-700);
+    color: var(--white);
+  }
+
+  .message-ai .message-avatar {
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid var(--primary);
+  }
+
+  .message-content {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .message-user .message-content {
+    background: var(--primary);
+    color: var(--white);
+    border-color: var(--primary);
+  }
+
+  /* Query results layout inside bubble */
+  .query-block {
+    margin-top: 14px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--gray-300);
+  }
+
+  .query-header {
+    background: var(--gray-800);
+    color: var(--gray-300);
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .query-code {
+    background: var(--gray-900);
+    color: #38bdf8;
+    padding: 12px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    margin-bottom: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* Table rendering */
+  .table-responsive-custom {
+    margin-top: 14px;
+    overflow-x: auto;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .table-custom {
+    width: 100%;
+    margin-bottom: 0;
+    font-size: 0.825rem;
+    border-collapse: collapse;
+    background: var(--white);
+  }
+
+  .table-custom th {
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--gray-200);
+    text-align: left;
+  }
+
+  .table-custom td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-800);
+  }
+
+  .table-custom tr:last-child td {
+    border-bottom: none;
+  }
+
+  .table-custom tr:nth-child(even) {
+    background-color: var(--gray-50);
+  }
+
+  /* Form/Input */
+  .chat-input-area {
+    padding: 16px 20px;
+    background: var(--white);
+    border-top: 1px solid var(--gray-200);
+  }
+
+  .chat-input-wrap {
+    display: flex;
+    gap: 12px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    transition: all var(--transition);
+  }
+
+  .chat-input-wrap:focus-within {
+    border-color: var(--primary);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+  }
+
+  .chat-textarea {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    resize: none;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    padding: 8px 4px;
+    max-height: 120px;
+    color: var(--gray-900);
+  }
+
+  .btn-send {
+    align-self: flex-end;
+    background: var(--primary);
+    color: var(--white);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition);
+  }
+
+  .btn-send:hover {
+    background: var(--primary-hover);
+  }
+
+  /* Sample queries chips */
+  .query-chips-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .query-chip-btn {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    text-align: left;
+    font-size: 0.8rem;
+    color: var(--gray-700);
+    font-weight: 500;
+    transition: all var(--transition);
+    cursor: pointer;
+  }
+
+  .query-chip-btn:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary-dark);
+  }
+
+  /* Copy SQL button styling */
+  .btn-copy-sql {
+    background: transparent;
+    border: none;
+    color: var(--gray-400);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: color var(--transition);
+  }
+
+  .btn-copy-sql:hover {
+    color: var(--white);
+  }
+
+  /* Typing loader animation */
+  .typing-loader {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    align-items: center;
+  }
+
+  .typing-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--gray-400);
+    border-radius: 50%;
+    animation: typing 1s infinite alternate;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typing {
+    from { transform: translateY(0); }
+    to { transform: translateY(-6px); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+  <div class="explorer-layout">
+    
+    <!-- ════════════════════════════ SIDEBAR ════════════════════════════ -->
+    <aside class="explorer-sidebar" aria-label="Explorer sidebar">
+      
+      <!-- DB Stats Card -->
+      <div class="sidebar-card">
+        <h2 class="sidebar-title"><i class="bi bi-database-check text-primary"></i>Database Schema Stats</h2>
+        <div class="stats-list">
+          <div class="stat-item">
+            <span class="stat-name"><i class="bi bi-tags"></i>categories</span>
+            <span class="stat-val" id="stat-categories">...</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-name"><i class="bi bi-box-seam"></i>products</span>
+            <span class="stat-val" id="stat-products">...</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-name"><i class="bi bi-people"></i>users</span>
+            <span class="stat-val" id="stat-users">...</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-name"><i class="bi bi-cart"></i>orders</span>
+            <span class="stat-val" id="stat-orders">...</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-name"><i class="bi bi-credit-card"></i>transactions</span>
+            <span class="stat-val" id="stat-transactions">...</span>
+          </div>
+          <div class="stat-item stat-total">
+            <span class="stat-name"><strong>Total Rows</strong></span>
+            <span class="stat-val bg-success text-white" id="stat-total">...</span>
+          </div>
+        </div>
+
+        <button class="btn btn-outline-danger w-100 mt-3 d-flex align-items-center justify-content-center gap-2" 
+                id="btn-reset-db" onclick="resetDatabase()">
+          <i class="bi bi-arrow-clockwise"></i> Reset &amp; Seed 10k+ Rows
+        </button>
+      </div>
+
+      <!-- Quick Questions Card -->
+      <div class="sidebar-card">
+        <h2 class="sidebar-title"><i class="bi bi-patch-question text-primary"></i>Try Sample Questions</h2>
+        <div class="query-chips-list">
+          <button class="query-chip-btn" onclick="sendSampleQuestion('Today orders count with status Cancelled')">
+            📅 Today's Cancelled orders count
+          </button>
+          <button class="query-chip-btn" onclick="sendSampleQuestion('Total PayPal Success transactions count and amount')">
+            💳 Total PayPal Success transactions
+          </button>
+          <button class="query-chip-btn" onclick="sendSampleQuestion('How many users registered this month?')">
+            👤 New users this month
+          </button>
+          <button class="query-chip-btn" onclick="sendSampleQuestion('Top 5 users by total orders placed')">
+            🏆 Top 5 users by order count
+          </button>
+          <button class="query-chip-btn" onclick="sendSampleQuestion('Average transaction amount grouped by payment method')">
+            📊 Avg amount per payment method
+          </button>
+          <button class="query-chip-btn" onclick="sendSampleQuestion('List 10 products with stock less than 10')">
+            📦 Low stock products
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ════════════════════════════ CHAT EXPLORER ════════════════════════════ -->
+    <main class="chat-panel" aria-label="Database Chat Explorer">
+      
+      <!-- Panel Header -->
+      <div class="chat-header">
+        <div class="chat-agent-info">
+          <div class="chat-agent-avatar">
+            <i class="bi bi-robot"></i>
+          </div>
+          <div>
+            <h3 class="h6 mb-0 font-weight-bold">Ecommerce SQL Agent</h3>
+            <span class="chat-agent-status"><i class="bi bi-circle-fill" style="font-size:6px;"></i>Online &bull; PostgreSQL Explorer</span>
+          </div>
+        </div>
+        <div>
+          <span class="badge bg-secondary">Capped at 10 rows</span>
+        </div>
+      </div>
+
+      <!-- Messages Box -->
+      <div class="chat-messages" id="chat-messages">
+        <!-- AI Welcome Message -->
+        <div class="message message-ai">
+          <div class="message-avatar">
+            <i class="bi bi-robot"></i>
+          </div>
+          <div class="message-content">
+            <p class="mb-0">
+              Welcome! I am your <strong>Ecommerce SQL Agent</strong>. Ask me any question in natural language and I will translate it into a read-only PostgreSQL query to execute against our database containing 10k+ rows!
+            </p>
+            <p class="mt-2 mb-0">
+              You can query across tables: <code>categories</code>, <code>products</code>, <code>users</code>, <code>orders</code>, and <code>transactions</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="chat-input-area">
+        <div class="chat-input-wrap">
+          <textarea 
+            id="chat-input" 
+            class="chat-textarea" 
+            placeholder="Type your question... e.g. Find the top 5 users in India" 
+            rows="1"
+            autocomplete="off"
+          ></textarea>
+          <button id="btn-send" class="btn-send" onclick="submitMessage()" aria-label="Send message">
+            <i class="bi bi-send-fill"></i>
+          </button>
+        </div>
+      </div>
+    </main>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/chat.js' %}"></script>
+{% endblock %}

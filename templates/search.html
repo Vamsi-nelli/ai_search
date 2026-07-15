@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Search Results — Smart Commerce AI{% endblock %}
+
+{% block content %}
+<div class="search-page-wrap">
+  <div class="container-xl">
+
+    <!-- ─── Search Bar ────────────────────────────────────────────────── -->
+    <div class="search-bar-section" role="search">
+      <div class="search-top-bar">
+        <div class="search-input-wrap">
+          <i class="bi bi-chat-dots search-input-icon"></i>
+          <input
+            id="search-input"
+            class="search-main-input"
+            type="text"
+            value="{{ query }}"
+            placeholder="Describe your problem... e.g. My neck hurts while working"
+            aria-label="Search by problem"
+            autocomplete="off"
+            maxlength="500"
+          />
+          <button id="search-btn" class="search-submit-btn" type="button" aria-label="Search">
+            <i class="bi bi-arrow-right-circle-fill me-2"></i>Search
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Thinking Bar -->
+      <div id="ai-thinking-bar" class="ai-thinking-bar" style="display:none;" role="status" aria-live="polite">
+        <div class="ai-thinking-content">
+          <div class="ai-thinking-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span class="ai-thinking-text" id="ai-thinking-text">Analyzing your problem with Grok AI...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Results Layout ───────────────────────────────────────────── -->
+    <div class="search-layout">
+
+      <!-- ── Sidebar ── -->
+      <aside class="search-sidebar" id="search-sidebar" aria-label="Search filters">
+        <div class="sidebar-header">
+          <h2 class="sidebar-title"><i class="bi bi-funnel me-2"></i>Filters</h2>
+          <button class="sidebar-clear-btn" onclick="clearFilters()" type="button">Clear All</button>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="filter-group">
+          <h3 class="filter-group-title">Category</h3>
+          <select class="filter-select" id="filter-category" name="category" aria-label="Filter by category">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Price Filter -->
+        <div class="filter-group">
+          <h3 class="filter-group-title">Price Range</h3>
+          <div class="price-range-inputs">
+            <div class="price-input-wrap">
+              <span class="price-currency">₹</span>
+              <input type="number" id="filter-price-min" class="price-input" placeholder="Min" min="0" aria-label="Minimum price" />
+            </div>
+            <span class="price-sep">—</span>
+            <div class="price-input-wrap">
+              <span class="price-currency">₹</span>
+              <input type="number" id="filter-price-max" class="price-input" placeholder="Max" min="0" aria-label="Maximum price" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Rating Filter -->
+        <div class="filter-group">
+          <h3 class="filter-group-title">Minimum Rating</h3>
+          <div class="rating-filter-options" role="radiogroup" aria-label="Filter by rating">
+            {% for r in "4321" %}
+            <label class="rating-filter-option">
+              <input type="radio" name="filter-rating" value="{{ r }}" class="rating-radio" />
+              <span class="rating-stars-display">
+                {% for s in "12345" %}
+                  {% if forloop.counter <= r|add:"0" %}
+                    <i class="bi bi-star-fill star-filled"></i>
+                  {% else %}
+                    <i class="bi bi-star star-empty"></i>
+                  {% endif %}
+                {% endfor %}
+              </span>
+              <span class="rating-label">{{ r }}+ stars</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Availability Filter -->
+        <div class="filter-group">
+          <h3 class="filter-group-title">Availability</h3>
+          <label class="filter-checkbox-label">
+            <input type="checkbox" id="filter-in-stock" class="filter-checkbox" />
+            <span>In Stock Only</span>
+          </label>
+        </div>
+
+        <!-- Sort Filter -->
+        <div class="filter-group">
+          <h3 class="filter-group-title">Sort By</h3>
+          <select class="filter-select" id="filter-sort" aria-label="Sort results">
+            <option value="">Best Match (AI)</option>
+            <option value="newest">Newest</option>
+            <option value="price_asc">Lowest Price</option>
+            <option value="price_desc">Highest Price</option>
+            <option value="rating">Best Rating</option>
+          </select>
+        </div>
+
+        <button class="sc-btn sc-btn--primary w-100 mt-3" type="button" onclick="applyFilters()" id="apply-filters-btn">
+          <i class="bi bi-funnel me-2"></i>Apply Filters
+        </button>
+      </aside>
+
+      <!-- ── Main Results ── -->
+      <main class="search-main" role="main" aria-live="polite" aria-label="Search results">
+
+        <!-- AI Insight Bar -->
+        <div id="ai-insight-bar" class="ai-insight-bar" style="display:none;">
+          <div class="ai-insight-icon"><i class="bi bi-robot"></i></div>
+          <div class="ai-insight-content">
+            <div class="ai-insight-label">AI Detected</div>
+            <div class="ai-insight-text" id="ai-insight-text"></div>
+          </div>
+          <div class="ai-keywords-wrap" id="ai-keywords-wrap"></div>
+        </div>
+
+        <!-- Results Header -->
+        <div class="results-header" id="results-header" style="display:none;">
+          <span class="results-count" id="results-count">0 products found</span>
+          <div class="results-view-toggle">
+            <button class="view-toggle-btn active" id="view-grid-btn" onclick="setView('grid')" aria-label="Grid view" type="button">
+              <i class="bi bi-grid-3x3-gap"></i>
+            </button>
+            <button class="view-toggle-btn" id="view-list-btn" onclick="setView('list')" aria-label="List view" type="button">
+              <i class="bi bi-list-ul"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Product Grid -->
+        <div class="products-grid" id="search-results-grid"></div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="search-empty-state" style="display:none;">
+          <div class="empty-icon"><i class="bi bi-search-heart"></i></div>
+          <h3 class="empty-title">No products found</h3>
+          <p class="empty-desc">Try describing your problem differently, or browse our categories.</p>
+          <a href="{% url 'core:home' %}" class="sc-btn sc-btn--primary">Try Again</a>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" class="search-error-state" style="display:none;">
+          <div class="error-icon"><i class="bi bi-exclamation-triangle"></i></div>
+          <h3 class="error-title" id="error-title">Something went wrong</h3>
+          <p class="error-desc" id="error-desc">Please try again in a moment.</p>
+          <button class="sc-btn sc-btn--primary" onclick="triggerSearch()" type="button">Retry</button>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-wrap" id="pagination-wrap" style="display:none;">
+          <button class="sc-btn sc-btn--outline" id="load-more-btn" onclick="loadMore()" type="button">
+            <i class="bi bi-arrow-down-circle me-2"></i>Load More Products
+          </button>
+        </div>
+
+      </main>
+    </div><!-- /search-layout -->
+
+  </div><!-- /container -->
+</div><!-- /search-page-wrap -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Initialize search with query from URL on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    const q = '{{ query|escapejs }}';
+    if (q) {
+      triggerSearch(q);
+    }
+  });
+</script>
+{% endblock %}

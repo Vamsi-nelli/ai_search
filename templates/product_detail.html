@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ product.name }} — Smart Commerce AI{% endblock %}
+{% block meta_description %}{{ product.short_description|truncatechars:155 }}{% endblock %}
+
+{% block content %}
+<div class="product-detail-page">
+  <div class="container-xl">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="sc-breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+        {% if product.category %}
+        <li class="breadcrumb-item">
+          <a href="{% url 'search:search' %}?q={{ product.category.name }}">{{ product.category.name }}</a>
+        </li>
+        {% endif %}
+        <li class="breadcrumb-item active" aria-current="page">{{ product.name|truncatechars:40 }}</li>
+      </ol>
+    </nav>
+
+    <!-- ─── Main Product Grid ─────────────────────────────────────────── -->
+    <div class="product-detail-grid">
+
+      <!-- ── Image Gallery ── -->
+      <div class="product-gallery" role="img" aria-label="Product images">
+        <div class="product-main-img-wrap">
+          <img
+            id="main-product-img"
+            src="{{ product.image }}"
+            alt="{{ product.name }}"
+            class="product-main-img"
+            onerror="this.src='https://picsum.photos/seed/default{{ product.id }}/600/600'"
+          />
+          {% if product.discount_percentage > 0 %}
+          <div class="product-detail-badge badge-discount">-{{ product.discount_percentage }}% OFF</div>
+          {% endif %}
+          {% if not product.in_stock %}
+          <div class="product-detail-badge badge-out">Out of Stock</div>
+          {% endif %}
+        </div>
+        <!-- Thumbnails (same image shown as gallery demo) -->
+        <div class="product-thumbs" aria-label="Image gallery thumbnails">
+          {% for i in "1234" %}
+          <button
+            class="product-thumb {% if forloop.first %}active{% endif %}"
+            onclick="swapMainImg(this, '{{ product.image }}')"
+            type="button"
+            aria-label="View image {{ forloop.counter }}"
+          >
+            <img src="{{ product.image }}" alt="{{ product.name }} view {{ forloop.counter }}" loading="lazy"
+                 onerror="this.src='https://picsum.photos/seed/thumb{{ product.id }}{{ forloop.counter }}/100/100'" />
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- ── Product Info ── -->
+      <div class="product-info">
+
+        <!-- Category & Brand -->
+        <div class="product-detail-meta">
+          {% if product.category %}
+          <a href="{% url 'search:search' %}?q={{ product.category.name }}" class="detail-category-badge">
+            {{ product.category.name }}
+          </a>
+          {% endif %}
+          {% if product.brand %}
+          <span class="detail-brand-text">by <strong>{{ product.brand.name }}</strong></span>
+          {% endif %}
+        </div>
+
+        <!-- Name -->
+        <h1 class="product-detail-name" id="product-name">{{ product.name }}</h1>
+
+        <!-- Rating Row -->
+        <div class="product-detail-rating" aria-label="Rating {{ product.rating }} out of 5">
+          <div class="rating-stars">
+            {% for i in "12345" %}
+              {% if forloop.counter <= product.rating %}
+                <i class="bi bi-star-fill star-filled"></i>
+              {% elif forloop.counter <= product.rating|add:"0.5" %}
+                <i class="bi bi-star-half star-filled"></i>
+              {% else %}
+                <i class="bi bi-star star-empty"></i>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <span class="rating-number">{{ product.rating }}</span>
+          <span class="rating-reviews">({{ product.review_count|floatformat:"0" }} reviews)</span>
+          {% if product.in_stock %}
+          <span class="stock-badge stock-in"><i class="bi bi-check-circle me-1"></i>In Stock ({{ product.stock }})</span>
+          {% else %}
+          <span class="stock-badge stock-out"><i class="bi bi-x-circle me-1"></i>Out of Stock</span>
+          {% endif %}
+        </div>
+
+        <!-- Price -->
+        <div class="product-detail-price-wrap">
+          <span class="detail-price">₹{{ product.effective_price }}</span>
+          {% if product.discount_price %}
+          <span class="detail-price-old">₹{{ product.price }}</span>
+          <span class="detail-discount-badge">Save {{ product.discount_percentage }}%</span>
+          {% endif %}
+        </div>
+
+        <!-- Short Description -->
+        <p class="product-detail-short-desc">{{ product.short_description }}</p>
+
+        <!-- Tags -->
+        {% if product.tags %}
+        <div class="product-tags-wrap" aria-label="Product tags">
+          {% for tag in product.tags|slice:":8" %}
+          <a href="{% url 'search:search' %}?q={{ tag }}" class="product-tag">{{ tag }}</a>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- CTA Buttons -->
+        <div class="product-detail-cta">
+          {% if product.in_stock %}
+          <button class="sc-btn sc-btn--primary sc-btn--lg" type="button" id="add-to-cart-btn"
+                  onclick="addToCart({{ product.id }})">
+            <i class="bi bi-cart-plus me-2"></i>Add to Cart
+          </button>
+          {% else %}
+          <button class="sc-btn sc-btn--primary sc-btn--lg" type="button" disabled>
+            <i class="bi bi-bell me-2"></i>Notify When Available
+          </button>
+          {% endif %}
+          <button class="sc-btn sc-btn--outline sc-btn--lg" type="button" id="wishlist-btn"
+                  onclick="toggleWishlist(this, {{ product.id }})" aria-label="Add to wishlist">
+            <i class="bi bi-heart me-2"></i>Wishlist
+          </button>
+        </div>
+
+        <!-- SKU & Share -->
+        <div class="product-detail-misc">
+          <span class="misc-item"><i class="bi bi-upc me-1"></i>SKU: <code>{{ product.sku }}</code></span>
+        </div>
+
+      </div><!-- /product-info -->
+    </div><!-- /product-detail-grid -->
+
+    <!-- ─── AI Recommendation Reason ────────────────────────────────── -->
+    {% if ai_reason %}
+    <div class="ai-reason-card" role="region" aria-labelledby="ai-reason-title">
+      <div class="ai-reason-icon"><i class="bi bi-robot"></i></div>
+      <div class="ai-reason-content">
+        <h3 class="ai-reason-title" id="ai-reason-title">Why AI Recommended This</h3>
+        <p class="ai-reason-text">{{ ai_reason }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ─── Tabs: Description / Specs / Features ─────────────────────── -->
+    <div class="product-tabs-section">
+      <ul class="product-tabs-nav nav nav-tabs" role="tablist" id="product-tabs">
+        <li class="nav-item" role="presentation">
+          <button class="product-tab nav-link active" id="tab-desc" data-bs-toggle="tab"
+                  data-bs-target="#tab-desc-content" type="button" role="tab" aria-selected="true">
+            Description
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="product-tab nav-link" id="tab-specs" data-bs-toggle="tab"
+                  data-bs-target="#tab-specs-content" type="button" role="tab" aria-selected="false">
+            Specifications
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="product-tab nav-link" id="tab-reviews" data-bs-toggle="tab"
+                  data-bs-target="#tab-reviews-content" type="button" role="tab" aria-selected="false">
+            Reviews ({{ product.review_count|floatformat:"0" }})
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content product-tab-content">
+        <!-- Description Tab -->
+        <div class="tab-pane fade show active" id="tab-desc-content" role="tabpanel">
+          <div class="product-full-desc">
+            {{ product.full_description|linebreaks }}
+          </div>
+        </div>
+
+        <!-- Specs Tab -->
+        <div class="tab-pane fade" id="tab-specs-content" role="tabpanel">
+          {% if product.specifications %}
+          <table class="specs-table" aria-label="Product specifications">
+            <thead>
+              <tr><th scope="col">Specification</th><th scope="col">Value</th></tr>
+            </thead>
+            <tbody>
+              {% for key, value in product.specifications.items %}
+              <tr>
+                <td class="spec-key">{{ key }}</td>
+                <td class="spec-value">{{ value }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="text-muted">No specifications available.</p>
+          {% endif %}
+        </div>
+
+        <!-- Reviews Tab -->
+        <div class="tab-pane fade" id="tab-reviews-content" role="tabpanel">
+          <div class="reviews-summary">
+            <div class="reviews-score">
+              <span class="reviews-big-score">{{ product.rating }}</span>
+              <div>
+                <div class="rating-stars">
+                  {% for i in "12345" %}
+                    {% if forloop.counter <= product.rating %}
+                      <i class="bi bi-star-fill star-filled"></i>
+                    {% else %}
+                      <i class="bi bi-star star-empty"></i>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+                <span class="reviews-count-label">Based on {{ product.review_count|floatformat:"0" }} reviews</span>
+              </div>
+            </div>
+            <p class="reviews-placeholder text-muted mt-3">
+              <i class="bi bi-chat-square-heart me-2"></i>
+              Customer reviews are being collected. Check back soon!
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Related Products ─────────────────────────────────────────── -->
+    {% if related_products %}
+    <section class="related-section" aria-labelledby="related-title">
+      <div class="section-header">
+        <h2 class="section-title" id="related-title">Related Products</h2>
+        <p class="section-subtitle">More products from {{ product.category.name }}</p>
+      </div>
+      <div class="products-grid">
+        {% for rp in related_products %}
+        <article class="product-card">
+          <a href="{% url 'products:detail' rp.slug %}" class="product-card-link" aria-label="{{ rp.name }}">
+            <div class="product-body">
+              <span class="product-category">{{ rp.category.name }}</span>
+              <h3 class="product-name">{{ rp.name }}</h3>
+              <p class="product-desc">{{ rp.short_description|truncatechars:70 }}</p>
+              <div class="product-rating">
+                {% for i in "12345" %}
+                  {% if forloop.counter <= rp.rating %}<i class="bi bi-star-fill star-filled"></i>
+                  {% else %}<i class="bi bi-star star-empty"></i>{% endif %}
+                {% endfor %}
+                <span class="rating-count">({{ rp.review_count|floatformat:"0" }})</span>
+              </div>
+              <div class="product-price-row">
+                <span class="product-price">₹{{ rp.effective_price }}</span>
+                {% if rp.discount_price %}<span class="product-price-old">₹{{ rp.price }}</span>{% endif %}
+              </div>
+            </div>
+          </a>
+          <div class="product-footer">
+            <span class="product-brand">{{ rp.brand.name }}</span>
+            <a href="{% url 'products:detail' rp.slug %}" class="sc-btn sc-btn--primary sc-btn--sm">
+              View <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function swapMainImg(btn, imgUrl) {
+  document.getElementById('main-product-img').src = imgUrl;
+  document.querySelectorAll('.product-thumb').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function addToCart(id) {
+  const btn = document.getElementById('add-to-cart-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Added!';
+  btn.style.background = '#10b981';
+  setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; }, 2000);
+}
+
+function toggleWishlist(btn, id) {
+  const icon = btn.querySelector('i');
+  if (icon.classList.contains('bi-heart')) {
+    icon.classList.replace('bi-heart', 'bi-heart-fill');
+    icon.style.color = '#ef4444';
+  } else {
+    icon.classList.replace('bi-heart-fill', 'bi-heart');
+    icon.style.color = '';
+  }
+}
+</script>
+{% endblock %}
